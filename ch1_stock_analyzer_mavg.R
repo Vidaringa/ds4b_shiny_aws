@@ -5,8 +5,8 @@
 
 # APPLICATION DESCRIPTION ----
 # - Add Moving Average Functionality
-# - UI Placement: 
-#   - Add a horizontal rule between the Analyze button and the new UI. 
+# - UI Placement:
+#   - Add a horizontal rule between the Analyze button and the new UI.
 #   - Place the Sliders below the button and horizontal rule
 # - Short MAVG Requirements: Starting value of 20, min of 5, max of 40
 # - Long MAVG Requirements: Starting value of 50, min of 50, max of 120
@@ -28,23 +28,23 @@ stock_list_tbl <- get_stock_list("SP500")
 # UI ----
 ui <- fluidPage(
     title = "Stock Analyzer",
-    
+
     # 1.0 HEADER ----
     div(
         h1("Stock Analyzer", "by Business Science"),
         p("This is the first mini-project completed in our", "Expert Shiny Applications Course (DS4B 202-R)")
     ),
-    
+
     # 2.0 APPLICATION UI -----
     div(
         column(
-            width = 4, 
+            width = 4,
             wellPanel(
                 pickerInput(
-                    inputId = "stock_selection", 
+                    inputId = "stock_selection",
                     label   = "Stock List (Pick One to Analyze)",
                     choices = stock_list_tbl$label,
-                    multiple = FALSE, 
+                    multiple = FALSE,
                     selected = stock_list_tbl %>% filter(label %>% str_detect("AAPL")) %>% pull(label),
                     options = pickerOptions(
                         actionsBox = FALSE,
@@ -52,11 +52,27 @@ ui <- fluidPage(
                         size = 10
                     )
                 ),
-                actionButton(inputId = "analyze", label = "Analyze", icon = icon("download"))
+                actionButton(inputId = "analyze", label = "Analyze", icon = icon("download")),
+
+                br(),
+                br(),
+                br(),
+
+                sliderInput(inputId = "slider_mavg_short",
+                            label = "Short Moving Average",
+                            min = 5,
+                            max = 40,
+                            value = 20),
+
+                sliderInput(inputId = "slider_mavg_long",
+                            label = "Long Moving Average",
+                            min = 50,
+                            max = 120,
+                            value = 50)
             )
         ),
         column(
-            width = 8, 
+            width = 8,
             div(
                 div(h4(textOutput(outputId = "plot_header"))),
                 div(
@@ -65,7 +81,7 @@ ui <- fluidPage(
             )
         )
     ),
-    
+
     # 3.0 ANALYST COMMENTARY ----
     div(
         column(
@@ -82,43 +98,43 @@ ui <- fluidPage(
 
 # SERVER ----
 server <- function(input, output, session) {
-    
+
     # Stock Symbol ----
     stock_symbol <- eventReactive(input$analyze, {
         get_symbol_from_user_input(input$stock_selection)
     }, ignoreNULL = FALSE)
-    
+
     # User Input ----
     stock_selection_triggered <- eventReactive(input$analyze, {
         input$stock_selection
     }, ignoreNULL = FALSE)
-    
-    
+
+
     # Get Stock Data ----
     stock_data_tbl <- reactive({
-        stock_symbol() %>% 
+        stock_symbol() %>%
             get_stock_data(
-                from = today() - days(180), 
+                from = today() - days(180),
                 to   = today(),
-                mavg_short = 20,
-                mavg_long  = 50)
+                mavg_short = input$slider_mavg_short,
+                mavg_long  = input$slider_mavg_long)
     })
-    
+
     # Plot Header ----
     output$plot_header <- renderText({
         stock_selection_triggered()
     })
-    
+
     # Plotly Plot ----
     output$plotly_plot <- renderPlotly({
         stock_data_tbl() %>% plot_stock_data()
     })
-    
+
     # Generate Commentary ----
     output$analyst_commentary <- renderText({
         generate_commentary(data = stock_data_tbl(), user_input = stock_selection_triggered())
     })
-    
+
 }
 
 # RUN APP ----
