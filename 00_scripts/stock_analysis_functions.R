@@ -45,11 +45,11 @@ function(data, user_input) {
         tail(1) %>%
         mutate(mavg_warning_flag = mavg_short < mavg_long) %>%
         pull(mavg_warning_flag)
-    
+
     n_short <- data %>% pull(mavg_short) %>% is.na() %>% sum() + 1
-    
+
     n_long <- data %>% pull(mavg_long) %>% is.na() %>% sum() + 1
-    
+
     if (warning_signal) {
         str_glue("In reviewing the stock prices of {user_input}, the {n_short}-day moving average is below the {n_long}-day moving average, indicating negative trends")
     } else {
