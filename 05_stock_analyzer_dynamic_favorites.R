@@ -215,23 +215,67 @@ server <- function(input, output, session) {
 
     # 2.3 Render Favorite Cards ----
     output$favorite_cards <- renderUI({
-        generate_favorite_cards(
-            favorites  = reactive_values$favorites_list,
-            from       = today() - days(180),
-            to         = today(),
-            mavg_short = input$mavg_short,
-            mavg_long  = input$mavg_long
-        )
+
+        if (!is.null(reactive_values$favorites_list)) {
+            generate_favorite_cards(
+                favorites  = reactive_values$favorites_list,
+                from       = today() - days(180),
+                to         = today(),
+                mavg_short = input$mavg_short,
+                mavg_long  = input$mavg_long
+            )
+        }
+
+
     })
+
+    # 2.4 - Delete Favorites ----
+    observeEvent(input$favorites_clear, {
+        modalDialog(
+            title = "Clear Favorites",
+            size  = "m",
+            easyClose = TRUE,
+
+            p("Are you sure you want to remove favorites?"),
+            br(),
+            div(
+                selectInput(inputId = "drop_list",
+                            label   = "Remove single favorite",
+                            choices = reactive_values$favorites_list %>% sort()),
+                actionButton(inputId = "remove_single_favorite",
+                             label = "Clear Single",
+                             class = "btn-warning"),
+                actionButton(inputId = "remove_all_favorite",
+                             label = "Clear ALL",
+                             class = "btn-danger")
+            ),
+
+            footer = modalButton("Exit")
+        ) %>% showModal()
+    })
+
+
+    # 2.4.1 Clear Single
+    observeEvent(input$remove_single_favorite, {
+        reactive_values$favorites_list <- reactive_values$favorites_list %>%
+            .[reactive_values$favorites_list != input$drop_list]
+
+        updateSelectInput(session = session, inputId = "drop_list",
+                          choices = reactive_values$favorites_list %>% sort())
+    })
+
 
     # 2.4.2 Clear All ----
-    observeEvent(input$favorites_clear, {
-        reactive_values$favorites_list <- current_user_favorites
+    observeEvent(input$remove_all_favorite, {
+        reactive_values$favorites_list <- NULL
+
+        updateSelectInput(session = session, inputId = "drop_list",
+                          choices = reactive_values$favorites_list %>% sort())
     })
 
 
 
-    # 2.5 Show/Hide Favorites ----
+    # 2.5 Show/Hide Favorites ----x
     observeEvent(input$favorites_toggle, {
         toggle(id = "favorite_cards")
     })
