@@ -1,10 +1,10 @@
 # BUSINESS SCIENCE ----
 # DS4B 202-R ----
-# STOCK ANALYZER APP - DYNAMIC PLOT TABS -----
+# STOCK ANALYZER APP - CHALLENGE #5 -----
 # Version 1
 
 # APPLICATION DESCRIPTION ----
-# - Add functionality that users can control plots for stock favorites
+# - Cleanup the Favorite Plots by adding a custom panel_card() function
 
 
 # LIBRARIES ----
@@ -19,6 +19,7 @@ library(tidyverse)
 
 source(file = "00_scripts/stock_analysis_functions.R")
 source(file = "00_scripts/info_card.R")
+source(file = "00_scripts/panel_card.R")
 source(file = "00_scripts/generate_favorite_cards.R")
 
 stock_list_tbl <- get_stock_list("SP500")
@@ -81,7 +82,7 @@ ui <- navbarPage(
             class = "container",
             id = "application_ui",
 
-            # 3.1 USER INPUT ----
+            # 3.1 USER INPUTS ----
             column(
                 width = 4,
                 wellPanel(
@@ -114,10 +115,11 @@ ui <- navbarPage(
                         hr(),
                         sliderInput(inputId = "mavg_short", label = "Short Moving Average", value = 20, min = 5, max = 40),
                         sliderInput(inputId = "mavg_long", label = "Long Moving Average", value = 50, min = 50, max = 120),
-                        actionButton(inputId = "apply_and_save", label = "Apply and save", icon = icon("save"))
+                        actionButton(inputId = "apply_and_save", label = "Apply & Save", icon = icon("save"))
                     ) %>% hidden()
                 )
             ),
+
             # 3.2 PLOT PANEL ----
             column(
                 width = 8,
@@ -165,7 +167,7 @@ server <- function(input, output, session) {
         input$stock_selection
     }, ignoreNULL = FALSE)
 
-    # 1.4 Apply and Save Settings ----
+    # 1.4 Apply & Save Settings ----
     mavg_short <- eventReactive(input$apply_and_save, {
         input$mavg_short
     }, ignoreNULL = FALSE)
@@ -174,22 +176,18 @@ server <- function(input, output, session) {
         input$mavg_long
     }, ignoreNULL = FALSE)
 
-
     selected_tab <- eventReactive(input$apply_and_save, {
         if (is.character(input$tab_panel_stock_chart)) {
-            # Tap already selected
+            # Tab already selected
             selected_tab <- input$tab_panel_stock_chart
         } else {
-            # Tap panel not build yet
-            selected_tab <- "Last Analysis"
+            # Tab panel not built yet
+            selected_tab <- NULL
         }
 
         selected_tab
 
     }, ignoreNULL = FALSE)
-
-
-
 
     # 1.5 Get Stock Data ----
     stock_data_tbl <- reactive({
@@ -211,8 +209,16 @@ server <- function(input, output, session) {
 
     # 2.2 Add Favorites ----
     observeEvent(input$favorites_add, {
+
         new_symbol <- get_symbol_from_user_input(input$stock_selection)
-        reactive_values$favorites_list <- c(reactive_values$favorites_list, new_symbol) %>% unique()
+        new_symbol_already_in_favorites <- new_symbol %in% reactive_values$favorites_list
+
+        if (!new_symbol_already_in_favorites) {
+            reactive_values$favorites_list <- c(reactive_values$favorites_list, new_symbol) %>% unique()
+
+            updateTabsetPanel(session = session, inputId = "tab_panel_stock_chart", selected = new_symbol)
+        }
+
     })
 
     # 2.3 Render Favorite Cards ----
@@ -281,7 +287,7 @@ server <- function(input, output, session) {
         shinyjs::toggle(id = "favorite_card_section", anim = TRUE, animType = "slide")
     })
 
-    # 3.0 FAVORITE PLOTS ----
+    # 3.0 FAVORITE PLOT ----
 
     # 3.1 Plot Header ----
     output$plot_header <- renderText({
@@ -293,7 +299,6 @@ server <- function(input, output, session) {
         stock_data_tbl() %>% plot_stock_data()
     })
 
-
     # 3.3 Favorite Plots ----
 
     output$stock_charts <- renderUI({
@@ -301,66 +306,49 @@ server <- function(input, output, session) {
         # First Tab Panel
         tab_panel_1 <- tabPanel(
             title = "Last Analysis",
-            div(
-                class = "panel",
-                div(
-                    class = "panel-header",
-                    h4(stock_symbol())
-                ),
-                div(
-                    class = "panel-body",
-                    plotlyOutput(outputId = "plotly_plot")
-                )
+            panel_card(
+                title = stock_symbol(),
+                plotlyOutput(outputId = "plotly_plot")
             )
         )
 
-
         # Favorite Panels
         favorite_tab_panels <- NULL
-
         if (length(reactive_values$favorites_list) > 0) {
 
             favorite_tab_panels <- reactive_values$favorites_list %>%
                 map(.f = function(x) {
                     tabPanel(
                         title = x,
-                        div(
-                            class = "panel",
-                            div(
-                                class = "panel-header",
-                                h4(x)
-                            ),
-                            div(
-                                class = "panel-body",
-                                x %>%
-                                    get_stock_data(
-                                        from = today() - days(180),
-                                        to   = today(),
-                                        mavg_short = mavg_short(),
-                                        mavg_long  = mavg_long()
-                                    ) %>%
-                                    plot_stock_data()
-                            )
+
+                        panel_card(
+                            title = x,
+                            x %>%
+                                get_stock_data(
+                                    from = today() - days(180),
+                                    to   = today(),
+                                    mavg_short = mavg_short(),
+                                    mavg_long  = mavg_long()
+                                ) %>%
+                                plot_stock_data()
                         )
+
                     )
                 })
+
         }
-
-
-
 
         # Building the Tabset Panel
         do.call(
             what = tabsetPanel,
             args = list(tab_panel_1) %>%
                 append(favorite_tab_panels) %>%
-                append(list(id = "tab_panel_stock_chart", type = "pills", selected = selected_tab()))
+                append(list(id = "tab_panel_stock_chart", type = "pills", selected = selected_tab() ))
         )
-
 
     })
 
-    # 4.0  COMMENTARY ----
+    # 4.0 COMMENTARY ----
 
     # 4.1 Generate Commentary ----
     output$analyst_commentary <- renderText({
@@ -369,9 +357,6 @@ server <- function(input, output, session) {
 
 
 }
-
-
-
 
 # RUN APP ----
 shinyApp(ui = ui, server = server)
