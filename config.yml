@@ -1,0 +1,8 @@
+default:
+    host:      "cluster0.iusxw.mongodb.net"
+    username:  "vidaringa"
+    password:  "t4Ujf4fM2049"
+production:
+    host:      "cluster0.iusxw.mongodb.net"
+    username:  "vidaringa"
+    password:  "t4Ujf4fM2049"

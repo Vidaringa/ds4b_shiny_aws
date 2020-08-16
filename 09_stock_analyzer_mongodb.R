@@ -1,11 +1,11 @@
 # BUSINESS SCIENCE ----
 # DS4B 202-R ----
-# STOCK ANALYZER APP - PERSISTENT DATA -----
+# STOCK ANALYZER APP - MONGODB ATLAS -----
 # Version 1
 
 # APPLICATION DESCRIPTION ----
 # - Perform CRUD Operations
-# - Use local data storage via RDS File
+# - Use cloud data storage via MongoDB Atlas
 
 
 # LIBRARIES ----
@@ -14,6 +14,10 @@ library(shinyWidgets)
 library(shinythemes)
 library(shinyjs)
 library(shinyauthr)  # devtools::install_github("business-science/shinyauthr")
+
+library(mongolite)
+library(jsonlite)
+library(config)
 
 library(plotly)
 library(tidyquant)
@@ -24,6 +28,12 @@ source(file = "00_scripts/info_card.R")
 source(file = "00_scripts/panel_card.R")
 source(file = "00_scripts/generate_favorite_cards.R")
 source(file = "00_scripts/crud_operations_local.R")
+source(file = "00_scripts/crud_operations_mongodb.R")
+
+Sys.setenv(R_CONFIG_ACTIVE = "default")
+config     <- config::get(file = "config.yml")
+database   <- "stock_analyzer"
+collection <- "user_base_test"
 
 stock_list_tbl <- get_stock_list("SP500")
 
@@ -58,11 +68,15 @@ ui <- tagList(
 server <- function(input, output, session) {
 
 
-    # 0.0 REAd USER BASE & AUTHENTICATE USER LOGIN
+   # 0.0 READ USER BASE & AUTHENTICATE USER LOGIN ----
 
-    # 0.1 Return user_base_tbl - To Global Environment ----
-    read_user_base()
-
+    # 0.1 Return user_base_tbl - To Global Environment -----
+   mongo_read_user_base(database   = database,
+                        collection = collection,
+                        host       = config$host,
+                        password   = config$password,
+                        username   = config$username
+                        )
 
     # 0.2 Credentials ----
     credentials <- callModule(
@@ -117,10 +131,15 @@ server <- function(input, output, session) {
 
     # 1.2 Stock Symbol ----
     observeEvent(input$analyze, {
-        update_and_write_user_base(
+        mongo_update_and_write_user_base(
             user_name    = credentials()$info$user,
             column_name  = "last_symbol",
-            assign_input = get_symbol_from_user_input(input$stock_selection)
+            assign_input = get_symbol_from_user_input(input$stock_selection),
+            database     = database,
+            collection   = collection,
+            host         = config$host,
+            password     = config$password,
+            username     = config$username
         )
     })
 
@@ -142,10 +161,15 @@ server <- function(input, output, session) {
             time_window = input$time_window
         )
 
-        update_and_write_user_base(
+        mongo_update_and_write_user_base(
             user_name    = credentials()$info$user,
             column_name  = "user_settings",
-            assign_input = list(user_settings_tbl)
+            assign_input = list(user_settings_tbl),
+            database     = database,
+            collection   = collection,
+            host         = config$host,
+            password     = config$password,
+            username     = config$username
         )
     })
 
@@ -198,16 +222,23 @@ server <- function(input, output, session) {
         new_symbol_already_in_favorites <- new_symbol %in% reactive_values$favorites_list
 
         if (!new_symbol_already_in_favorites) {
+
             reactive_values$favorites_list <- c(reactive_values$favorites_list, new_symbol) %>% unique()
 
             updateTabsetPanel(session = session, inputId = "tab_panel_stock_chart", selected = new_symbol)
 
-            update_and_write_user_base(
-                user_name    = credentials()$info$user,
-                column_name  = "favorites",
-                assign_input = list(reactive_values$favorites_list)
+            mongo_update_and_write_user_base(
+                user_name = credentials()$info$user,
+                column_name = "favorites",
+                assign_input = list(reactive_values$favorites_list),
+                database     = database,
+                collection   = collection,
+                host         = config$host,
+                password     = config$password,
+                username     = config$username
             )
         }
+
     })
 
     # 2.3 Render Favorite Cards ----
@@ -260,10 +291,15 @@ server <- function(input, output, session) {
                           inputId = "drop_list",
                           choices = reactive_values$favorites_list %>% sort())
 
-        update_and_write_user_base(
+        mongo_update_and_write_user_base(
             user_name    = credentials()$info$user,
             column_name  = "favorites",
-            assign_input = list(reactive_values$favorites_list)
+            assign_input = list(reactive_values$favorites_list),
+            database     = database,
+            collection   = collection,
+            host         = config$host,
+            password     = config$password,
+            username     = config$username
         )
     })
 
@@ -276,10 +312,15 @@ server <- function(input, output, session) {
                           inputId = "drop_list",
                           choices = reactive_values$favorites_list %>% sort())
 
-        update_and_write_user_base(
+        mongo_update_and_write_user_base(
             user_name    = credentials()$info$user,
             column_name  = "favorites",
-            assign_input = list(reactive_values$favorites_list)
+            assign_input = list(reactive_values$favorites_list),
+            database     = database,
+            collection   = collection,
+            host         = config$host,
+            password     = config$password,
+            username     = config$username
         )
     })
 
